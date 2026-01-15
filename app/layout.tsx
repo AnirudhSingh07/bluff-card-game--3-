@@ -1,16 +1,14 @@
 import "./globals.css";
+import SocketProvider from "./providers/socket-provider";
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  // 🔥 This triggers the socket server
-  fetch("/api/socket");
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <SocketProvider>
+          {children}
+        </SocketProvider>
+      </body>
     </html>
   );
 }
