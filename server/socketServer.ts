@@ -1,61 +1,120 @@
-import { createServer } from "http"
-import { Server } from "socket.io"
+import { Server } from "socket.io";
 
 interface Player {
-  id: string
-  name: string
-  hand: string[]
+  name: string;
+  id: string;
+  socketId: string;
 }
 
 interface Game {
-  players: Player[]
-  deck: string[]
-  currentTurn: number
+  id: string;
+  players: Player[];
+  maxPlayers: number;
+  started: boolean;
 }
 
-const games: Record<string, Game> = {}
+const games: Record<string, Game> = {};
 
-const httpServer = createServer()
-const io = new Server(httpServer, {
-  cors: { origin: "*" }, // Dev only, restrict in production
-})
+export const initSocket = (server: any) => {
+  const io = new Server(server, {
+    cors: { origin: "*" },
+  });
 
-io.on("connection", (socket) => {
-  console.log("Player connected:", socket.id)
+  io.on("connection", (socket) => {
+    console.log("Socket connected:", socket.id);
 
-  socket.on("join_game", ({ gameId, playerName }: { gameId: string; playerName: string }) => {
-    socket.join(gameId)
-    if (!games[gameId]) {
-      games[gameId] = { players: [], deck: [], currentTurn: 0 }
-    }
-    games[gameId].players.push({ id: socket.id, name: playerName, hand: [] })
-    io.to(gameId).emit("game_update", games[gameId])
-  })
+    /* ---------- CREATE GAME ---------- */
+    socket.on("create-game", ({ playerName, maxPlayers }) => {
+      const gameId = Math.random().toString(36).substring(2, 8);
 
-  socket.on("play_cards", ({ gameId, cards }: { gameId: string; cards: string[] }) => {
-    const game = games[gameId]
-    const player = game.players.find((p) => p.id === socket.id)
-    if (!player) return
+      const player: Player = {
+        name: playerName,
+        id: "p0",
+        socketId: socket.id,
+      };
 
-    player.hand = player.hand.filter((c) => !cards.includes(c))
-    game.currentTurn = (game.currentTurn + 1) % game.players.length
+      games[gameId] = {
+        id: gameId,
+        players: [player],
+        maxPlayers,
+        started: true, // ✅ creator starts immediately
+      };
 
-    io.to(gameId).emit("game_update", game)
-  })
+      socket.join(gameId);
 
-  socket.on("pass_turn", ({ gameId }: { gameId: string }) => {
-    const game = games[gameId]
-    game.currentTurn = (game.currentTurn + 1) % game.players.length
-    io.to(gameId).emit("game_update", game)
-  })
+      socket.emit("game-created", { gameId });
 
-  socket.on("disconnect", () => {
-    console.log("Player disconnected:", socket.id)
-    for (const gameId in games) {
-      games[gameId].players = games[gameId].players.filter((p) => p.id !== socket.id)
-      io.to(gameId).emit("game_update", games[gameId])
-    }
-  })
-})
+      emitLobbyState(gameId);
+    });
 
-httpServer.listen(3001, () => console.log("Socket.IO server running on port 3001"))
+    /* ---------- JOIN GAME ---------- */
+    socket.on("join-game", ({ gameId, playerName }) => {
+      const game = games[gameId];
+      if (!game) return;
+
+      let index = game.players.findIndex(
+        (p) => p.socketId === socket.id
+      );
+
+      if (index === -1) {
+        game.players.push({
+          name: playerName,
+          id: "p" + game.players.length,
+          socketId: socket.id,
+        });
+        socket.join(gameId);
+      }
+
+      emitLobbyState(gameId);
+    });
+
+    /* ---------- GET LOBBY STATE ---------- */
+    socket.on("get-lobby-state", ({ gameId }) => {
+      emitLobbyState(gameId, socket);
+    });
+
+    /* ---------- DISCONNECT ---------- */
+    socket.on("disconnect", () => {
+      for (const gameId in games) {
+        const game = games[gameId];
+        const index = game.players.findIndex(
+          (p) => p.socketId === socket.id
+        );
+
+        if (index !== -1) {
+          game.players.splice(index, 1);
+          emitLobbyState(gameId);
+        }
+
+        if (game.players.length === 0) {
+          delete games[gameId];
+        }
+      }
+    });
+
+    /* ---------- HELPER ---------- */
+    const emitLobbyState = (gameId: string, target?: any) => {
+      const game = games[gameId];
+      if (!game) return;
+
+      const payload = {
+        players: game.players,
+        maxPlayers: game.maxPlayers,
+        started: game.started,
+      };
+
+      if (target) {
+        target.emit("lobby-state", {
+          ...payload,
+          playerIndex: game.players.findIndex(
+            (p) => p.socketId === target.id
+          ),
+        });
+      } else {
+        io.to(gameId).emit("lobby-state", payload);
+      }
+    };
+  });
+
+  return io;
+};
