@@ -5,7 +5,7 @@ let socket: Socket | null = null;
 
 export const getSocket = (): Socket => {
   if (!socket) {
-    socket = io("http://localhost:4000", {
+    socket = io("https://bluff-game-server-production.up.railway.app", {
       autoConnect: false, // we control when to connect
     });
   }
