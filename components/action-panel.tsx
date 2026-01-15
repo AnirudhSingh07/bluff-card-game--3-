@@ -12,6 +12,7 @@ interface ActionPanelProps {
   canCheck: boolean
   isCurrentPlayer: boolean
   playerHand: string[]
+  gameLog: string[]   // 👈 ADD THIS
 }
 
 export default function ActionPanel({
@@ -21,6 +22,7 @@ export default function ActionPanel({
   canCheck,
   isCurrentPlayer,
   playerHand,
+  gameLog,          // 👈 ADD THIS
 }: ActionPanelProps) {
   const [showPlayDialog, setShowPlayDialog] = useState(false)
 
@@ -65,6 +67,7 @@ export default function ActionPanel({
       {showPlayDialog && (
         <PlayDialog
           playerHand={playerHand}
+          log={gameLog}   // 👈 PASS LOG HERE
           onSubmit={(count, type, selected) => {
             onPlayCards(count, type, selected)
             setShowPlayDialog(false)

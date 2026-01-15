@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import PlayerHand from "./player-hand"
 import PlayersStatus from "./players-status"
 import GameLog from "./game-log"
@@ -39,16 +39,18 @@ export default function GameBoard({
   const [lastClaim, setLastClaim] = useState<LastClaim | null>(null)
   const [isReady, setIsReady] = useState(false)
 
+  // 🔥 Track previous pile size to detect round reset
+  const prevPileSize = useRef(0)
+
   //UniqueHand
   const getUniqueHand = (hand: string[]) => {
-  const seen = new Set<string>()
-  return hand.filter(card => {
-    if (seen.has(card)) return false
-    seen.add(card)
-    return true
-  })
-}
-
+    const seen = new Set<string>()
+    return hand.filter(card => {
+      if (seen.has(card)) return false
+      seen.add(card)
+      return true
+    })
+  }
 
   /* =======================
      SERVER → CLIENT SYNC
@@ -58,11 +60,24 @@ export default function GameBoard({
 
     const onGameUpdated = (game: any) => {
       setPlayersState(game.players)
-      setPile(game.pile)
       setTurn(game.turn)
       setLog(game.log)
       setLastClaim(game.lastClaim ?? null)
       setIsReady(true)
+
+      /* =========================================
+         🧠 ROUND RESET DETECTION
+         If everyone passed:
+         - server clears lastClaim
+         - server clears pile
+      ========================================== */
+      if (prevPileSize.current > 0 && game.lastClaim === null && game.pile.length === 0) {
+        setPile([]) // clear pile locally
+      } else {
+        setPile(game.pile)
+      }
+
+      prevPileSize.current = game.pile.length
     }
 
     socket.on("game-updated", onGameUpdated)
@@ -90,9 +105,9 @@ export default function GameBoard({
   const isMyTurn = turn === playerIndex
 
   const canCheck =
-    !!lastClaim && // a claim exists
-    lastClaim.player !== playerIndex && // not your own claim
-    isMyTurn // only active player can check
+    !!lastClaim &&
+    lastClaim.player !== playerIndex &&
+    isMyTurn
 
   /* =======================
      ACTIONS (SOCKET SAFE)
@@ -164,37 +179,24 @@ export default function GameBoard({
       <GameLog log={log} />
 
       {/* HAND VIEW */}
-      <div className=" mt-6 mt-32">
+      <div className="mt-6 mt-32">
         <h2 className="text-xl font-semibold mb-2">
-          {isMyTurn ? "Your Hand" : `${currentPlayer.name}'s Hand`}
+          Your Hand
         </h2>
-
-        {isMyTurn ? (
-  <PlayerHand cards={getUniqueHand(me.hand)} />
-) : (
-          <div className="flex gap-2 mt-2">
-            {Array.from({ length: currentPlayer.hand.length }).map((_, i) => (
-              <div
-                key={i}
-                className="w-10 h-14 bg-gray-800 rounded text-white flex items-center justify-center"
-              >
-                🂠
-              </div>
-            ))}
-          </div>
-        )}
+        <PlayerHand cards={getUniqueHand(me.hand)} />
       </div>
 
       {/* ACTIONS */}
       <div className="relative flex">
-      <ActionPanel
-        onPass={pass}
-        onPlayCards={playCards}
-        onCheck={check}
-        canCheck={canCheck}
-        isCurrentPlayer={isMyTurn}
-        playerHand={me.hand}
-      />
+        <ActionPanel
+          onPass={pass}
+          gameLog={log}
+          onPlayCards={playCards}
+          onCheck={check}
+          canCheck={canCheck}
+          isCurrentPlayer={isMyTurn}
+          playerHand={me.hand}
+        />
       </div>
     </div>
   )

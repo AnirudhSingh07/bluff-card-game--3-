@@ -93,18 +93,36 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import PlayerHand from "./player-hand"
 
+
+
 interface PlayDialogProps {
   playerHand: string[]
+  //new
+  log?:string[]
   onSubmit: (count: number, cardType: string, selectedCards: string[]) => void
   onClose: () => void
 }
 
 const CARD_TYPES = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]
 
-export default function PlayDialog({ playerHand, onSubmit, onClose }: PlayDialogProps) {
+export default function PlayDialog({ playerHand,log, onSubmit, onClose }: PlayDialogProps) {
   const [count, setCount] = useState(1)
   const [cardType, setCardType] = useState("A")
   const [selectedCards, setSelectedCards] = useState<string[]>([])
+
+  //new
+  const lastLog = log?.[log.length - 1] || null
+
+let lastCardType: string | null = null
+
+if (lastLog) {
+  const match = lastLog.match(/(\d+)x\s+([A-Z0-9]+)/)
+  if (match) lastCardType = match[2]
+}
+const allowedCardTypes = lastCardType
+  ? [lastCardType]
+  : CARD_TYPES
+
 
   const toggleSelectCard = (cardId: string) => {
     setSelectedCards(prev =>
@@ -131,7 +149,7 @@ export default function PlayDialog({ playerHand, onSubmit, onClose }: PlayDialog
 
         {/* Count selection */}
         <div className="flex gap-2 justify-center flex-wrap">
-          {[1, 2, 3, 4, 5, 6].map(n => (
+          {[1, 2, 3, 4].map(n => (
             <Button
               key={n}
               variant={count === n ? "default" : "outline"}
@@ -147,7 +165,9 @@ export default function PlayDialog({ playerHand, onSubmit, onClose }: PlayDialog
 
         {/* Card type selection */}
         <div className="grid grid-cols-7 gap-2">
-          {CARD_TYPES.map(type => (
+          {/* new */}
+          {allowedCardTypes.map(type => (
+
             <Button
               key={type}
               variant={cardType === type ? "default" : "outline"}

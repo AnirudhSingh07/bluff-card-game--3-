@@ -23,8 +23,11 @@ interface Game {
   turn: number;
   log: string[];
   lastClaim: any;
-  winner?: number;              // final winner
-  potentialWinner?: number;     // waiting for full turn cycle
+  winner?: number;
+  potentialWinner?: number;
+
+  // 🔥 NEW
+  passCount: number;
 }
 
 const games = new Map<string, Game>();
@@ -51,7 +54,6 @@ const dealCards = (playersCount: number) => {
   return hands;
 };
 
-// Confirm winner only after full turn cycle
 const checkWinnerOnTurn = (game: Game) => {
   if (game.winner !== undefined) return;
 
@@ -77,7 +79,6 @@ const checkWinnerOnTurn = (game: Game) => {
 io.on("connection", (socket) => {
   console.log("New connection:", socket.id);
 
-  // CREATE GAME
   socket.on("create-game", ({ name }) => {
     const gameId = Math.random().toString(36).substring(2, 8);
     const player: Player = { id: socket.id, name, hand: [], isActive: true };
@@ -89,6 +90,7 @@ io.on("connection", (socket) => {
       turn: 0,
       log: [],
       lastClaim: null,
+      passCount: 0, // 🔥
     };
 
     const hands = dealCards(1);
@@ -99,7 +101,6 @@ io.on("connection", (socket) => {
     socket.emit("game-created", { gameId, playerIndex: 0 });
   });
 
-  // JOIN GAME
   socket.on("join-game", ({ gameId, name }) => {
     const game = games.get(gameId);
     if (!game) return socket.emit("error", "Game not found");
@@ -120,7 +121,7 @@ io.on("connection", (socket) => {
     if (game) socket.emit("game-updated", game);
   });
 
-  // PLAY CARDS
+  // PLAY
   socket.on("play-cards", ({ gameId, playerIndex, selected, count, type }) => {
     const game = games.get(gameId);
     if (!game || game.winner !== undefined) return;
@@ -133,6 +134,8 @@ io.on("connection", (socket) => {
     game.lastClaim = { player: playerIndex, count, type, cards: selected };
     game.log.push(`${player.name} claims ${count}x ${type}`);
 
+    game.passCount = 0; // 🔥 reset passes
+
     if (player.hand.length === 0) {
       game.potentialWinner = playerIndex;
     }
@@ -143,7 +146,7 @@ io.on("connection", (socket) => {
     io.to(gameId).emit("game-updated", game);
   });
 
-  // CHECK (UPDATED TURN LOGIC)
+  // CHECK
   socket.on("check", ({ gameId }) => {
     const game = games.get(gameId);
     if (!game || !game.lastClaim || game.winner !== undefined) return;
@@ -160,20 +163,16 @@ io.on("connection", (socket) => {
 
     if (lied) {
       claimer.hand.push(...game.pile);
-      game.log.push(
-        `${checker.name} checked ${claimer.name}. ❌ ${claimer.name} LIED and takes the pile (${game.pile.length} cards).`
-      );
+      game.log.push(`${checker.name} checked ${claimer.name}. ❌ ${claimer.name} LIED and takes the pile (${game.pile.length} cards).`);
     } else {
       checker.hand.push(...game.pile);
-      game.log.push(
-        `${checker.name} checked ${claimer.name}. ✅ ${claimer.name} was HONEST. ${checker.name} takes the pile (${game.pile.length} cards).`
-      );
+      game.log.push(`${checker.name} checked ${claimer.name}. ✅ ${claimer.name} was HONEST. ${checker.name} takes the pile (${game.pile.length} cards).`);
     }
 
     game.pile = [];
     game.lastClaim = null;
+    game.passCount = 0; // 🔥 reset passes
 
-    // ✅ ONLY CHANGE IS HERE
     game.turn = lied ? checkerIndex : claimerIndex;
 
     checkWinnerOnTurn(game);
@@ -185,10 +184,20 @@ io.on("connection", (socket) => {
     const game = games.get(gameId);
     if (!game || game.winner !== undefined) return;
 
+    game.log.push(`${game.players[playerIndex].name} passed`);
+    game.passCount++; // 🔥 count passes
+
+    // 🔥 EVERYONE PASSED → RESET ROUND
+    if (game.passCount >= game.players.length && game.lastClaim) {
+      game.log.push(`All players passed. Round reset. Pile discarded (${game.pile.length} cards).`);
+      game.pile = [];
+      game.lastClaim = null;
+      game.passCount = 0;
+    }
+
     game.turn = (game.turn + 1) % game.players.length;
     checkWinnerOnTurn(game);
 
-    game.log.push(`${game.players[playerIndex].name} passed`);
     io.to(gameId).emit("game-updated", game);
   });
 
