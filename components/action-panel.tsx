@@ -27,27 +27,33 @@ export default function ActionPanel({
   if (!isCurrentPlayer) return null
 
   return (
-    <>
-
-<div className=" mt-5 flex justify-center">
+    <div className="mt-5 flex justify-center">
       <Card className="border border-black w-80 align-middle items-center bg-gray-800">
         <div className="flex gap-4 flex-wrap justify-center">
+          {/* Pass Button */}
           <Button
             onClick={onPass}
-            className="min-w-32  text-white hover:bg-green-700 bg-green-800"
+            className="min-w-32 text-white hover:bg-green-700 bg-green-800"
           >
             Pass
           </Button>
 
-          <Button onClick={() => setShowPlayDialog(true)} className="min-w-32 bg-blue-600 hover:bg-blue-700 text-white">
+          {/* Play Button */}
+          <Button
+            onClick={() => setShowPlayDialog(true)}
+            className="min-w-32 bg-blue-600 hover:bg-blue-700 text-white"
+          >
             Play
           </Button>
 
+          {/* Check Button */}
           <Button
             onClick={onCheck}
             disabled={!canCheck}
             className={`min-w-32 ${
-              canCheck ? "bg-red-600 hover:bg-red-700 text-white" : "bg-red-300 text-red-50 cursor-not-allowed"
+              canCheck
+                ? "bg-red-600 hover:bg-red-700 text-white"
+                : "bg-red-300 text-red-50 cursor-not-allowed"
             }`}
           >
             Check
@@ -55,14 +61,17 @@ export default function ActionPanel({
         </div>
       </Card>
 
+      {/* Play Dialog */}
       {showPlayDialog && (
         <PlayDialog
           playerHand={playerHand}
-          onSubmit={onPlayCards}
+          onSubmit={(count, type, selected) => {
+            onPlayCards(count, type, selected)
+            setShowPlayDialog(false)
+          }}
           onClose={() => setShowPlayDialog(false)}
         />
       )}
-      </div>
-    </>
+    </div>
   )
 }

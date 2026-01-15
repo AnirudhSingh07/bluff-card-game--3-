@@ -1,148 +1,201 @@
 "use client"
 
-import { useState } from "react"
-import { Card } from "@/components/ui/card"
+import { useEffect, useState } from "react"
 import PlayerHand from "./player-hand"
 import PlayersStatus from "./players-status"
 import GameLog from "./game-log"
 import ActionPanel from "./action-panel"
 
-/* ========== CARD ENGINE ========== */
-const SUITS = ["♠", "♥", "♦", "♣"]
-const VALUES = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]
-
-const createDeck = () => {
-  const deck: string[] = []
-  for (const s of SUITS) {
-    for (const v of VALUES) {
-      deck.push(`${v}${s}`)
-    }
-  }
-  return deck
+interface Player {
+  id: string
+  name: string
+  hand: string[]
+  isActive?: boolean
 }
 
-const shuffle = (deck: string[]) => [...deck].sort(() => Math.random() - 0.5)
-
-/* Deal all cards equally */
-const deal = (players: string[]) => {
-  const deck = shuffle(createDeck())
-  const hands: string[][] = players.map(() => [])
-  deck.forEach((card, i) => {
-    hands[i % players.length].push(card)
-  })
-  return players.map((name, i) => ({
-    id: "p" + i,
-    name,
-    hand: hands[i],
-    isActive: true,
-  }))
+interface LastClaim {
+  player: number
+  count: number
+  type: string
 }
 
-/* ========== GAMEBOARD COMPONENT ========== */
-export default function GameBoard({ players }: { players: string[] }) {
-  const [playersState, setPlayers] = useState(() => deal(players))
+interface GameBoardProps {
+  players: string[]
+  playerIndex: number
+  socket: any
+  gameId: string
+}
+
+export default function GameBoard({
+  players,
+  playerIndex,
+  socket,
+  gameId,
+}: GameBoardProps) {
+  const [playersState, setPlayersState] = useState<Player[]>([])
   const [pile, setPile] = useState<string[]>([])
-  const [turn, setTurn] = useState(0)
+  const [turn, setTurn] = useState<number>(0)
   const [log, setLog] = useState<string[]>([])
-  const [lastClaim, setLastClaim] = useState<{
-    player: number
-    count: number
-    type: string
-    cards: string[]
-  } | null>(null)
+  const [lastClaim, setLastClaim] = useState<LastClaim | null>(null)
+  const [isReady, setIsReady] = useState(false)
 
-  /* ========== TURN ROTATION ========== */
-  const nextTurn = () => {
-    let i = turn
-    do {
-      i = (i + 1) % playersState.length
-    } while (!playersState[i].isActive)
-    setTurn(i)
-  }
+  //UniqueHand
+  const getUniqueHand = (hand: string[]) => {
+  const seen = new Set<string>()
+  return hand.filter(card => {
+    if (seen.has(card)) return false
+    seen.add(card)
+    return true
+  })
+}
 
-  /* ========== PLAY CARDS ========== */
-  const playCards = (count: number, type: string, selected: string[]) => {
-    if (selected.length !== count) return
 
-    const p = playersState.map(pl => ({ ...pl, hand: [...pl.hand] }))
-    const player = p[turn]
+  /* =======================
+     SERVER → CLIENT SYNC
+     ======================= */
+  useEffect(() => {
+    socket.emit("get-game-state", { gameId })
 
-    // remove cards from player's hand
-    player.hand = player.hand.filter(c => !selected.includes(c))
-
-    // move cards to pile
-    setPile(prev => [...prev, ...selected])
-
-    setLastClaim({ player: turn, count, type, cards: selected })
-    setPlayers(p)
-    setLog(l => [...l, `${player.name} claims ${count}x ${type}`])
-    nextTurn()
-  }
-
-  /* ========== CHECK (CALL BLUFF) ========== */
-  const check = () => {
-    if (!lastClaim) return
-
-    const { player: lastPlayerIndex, type, cards } = lastClaim
-    const p = playersState.map(pl => ({ ...pl, hand: [...pl.hand] }))
-    const liar = p[lastPlayerIndex]
-    const checker = p[turn]
-
-    const pileCopy = [...pile]
-
-    const lied = cards.some(c => {
-      const value = c.slice(0, -1)
-      return value !== type
-    })
-
-    if (lied) {
-      liar.hand.push(...pileCopy)
-      setLog(l => [...l, `${checker.name} caught ${liar.name} lying! ${liar.name} takes all pile cards.`])
-    } else {
-      checker.hand.push(...pileCopy)
-      setLog(l => [...l, `${checker.name} was wrong. ${liar.name} was honest. ${checker.name} takes all pile cards.`])
+    const onGameUpdated = (game: any) => {
+      setPlayersState(game.players)
+      setPile(game.pile)
+      setTurn(game.turn)
+      setLog(game.log)
+      setLastClaim(game.lastClaim ?? null)
+      setIsReady(true)
     }
 
-    setPile([])
-    setLastClaim(null)
-    setPlayers(p)
-    nextTurn()
+    socket.on("game-updated", onGameUpdated)
+
+    return () => {
+      socket.off("game-updated", onGameUpdated)
+    }
+  }, [socket, gameId])
+
+  if (!isReady || playersState.length === 0) {
+    return (
+      <div className="h-screen flex items-center justify-center text-xl">
+        Loading game…
+      </div>
+    )
   }
 
-  const pass = () => nextTurn()
+  const me = playersState[playerIndex]
+  const currentPlayer = playersState[turn]
 
-  const current = playersState[turn]
+  /* =======================
+     VALIDATION HELPERS
+     ======================= */
+
+  const isMyTurn = turn === playerIndex
+
+  const canCheck =
+    !!lastClaim && // a claim exists
+    lastClaim.player !== playerIndex && // not your own claim
+    isMyTurn // only active player can check
+
+  /* =======================
+     ACTIONS (SOCKET SAFE)
+     ======================= */
+
+  const playCards = (
+    count: number,
+    type: string,
+    selected: string[]
+  ) => {
+    if (!isMyTurn) return
+    if (!selected || selected.length !== count) return
+
+    socket.emit("play-cards", {
+      gameId,
+      playerIndex,
+      selected,
+      count,
+      type,
+    })
+  }
+
+  const pass = () => {
+    if (!isMyTurn) return
+
+    socket.emit("pass", {
+      gameId,
+      playerIndex,
+    })
+  }
+
+  const check = () => {
+    if (!canCheck) return
+
+    socket.emit("check", {
+      gameId,
+    })
+  }
+
+  /* =======================
+     UI
+     ======================= */
 
   return (
-    <div className="min-h-screen ">
-      <h1 className="text-5xl font-extralight text-center text-blue-500 mb-6"> Web3 Bluff</h1>
+    <div className="min-h-screen p-4">
+      <h1 className="text-5xl text-center text-blue-500 mb-6">Bluff</h1>
 
       <PlayersStatus players={playersState} currentIndex={turn} />
 
-      <Card className="  text-center p-4 mt-4">
-        <p>Pile: {pile.length} cards</p>
-        {lastClaim && (
-          <p>
-            {playersState[lastClaim.player].name} claims {lastClaim.count}x {lastClaim.type}
+      {/* PILE INFO */}
+      <div className="border p-4 mt-4 rounded bg-slate-100">
+        <p className="font-semibold">Pile: {pile.length} cards</p>
+
+        {lastClaim ? (
+          <p className="mt-1">
+            <span className="font-semibold">
+              {playersState[lastClaim.player].name}
+            </span>{" "}
+            claims{" "}
+            <span className="font-semibold">
+              {lastClaim.count} × {lastClaim.type}
+            </span>
           </p>
+        ) : (
+          <p className="italic text-slate-500">No active claim</p>
         )}
-      </Card>
+      </div>
 
       <GameLog log={log} />
 
-      <div className="mt-6">
-        <h2 className="text-xl">{current.name}'s Hand</h2>
-        <PlayerHand cards={current.hand} />
+      {/* HAND VIEW */}
+      <div className=" mt-6 mt-32">
+        <h2 className="text-xl font-semibold mb-2">
+          {isMyTurn ? "Your Hand" : `${currentPlayer.name}'s Hand`}
+        </h2>
+
+        {isMyTurn ? (
+  <PlayerHand cards={getUniqueHand(me.hand)} />
+) : (
+          <div className="flex gap-2 mt-2">
+            {Array.from({ length: currentPlayer.hand.length }).map((_, i) => (
+              <div
+                key={i}
+                className="w-10 h-14 bg-gray-800 rounded text-white flex items-center justify-center"
+              >
+                🂠
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* ACTIONS */}
+      <div className="relative flex">
       <ActionPanel
         onPass={pass}
         onPlayCards={playCards}
         onCheck={check}
-        canCheck={!!lastClaim}
-        isCurrentPlayer={true}
-        playerHand={current.hand}
+        canCheck={canCheck}
+        isCurrentPlayer={isMyTurn}
+        playerHand={me.hand}
       />
+      </div>
     </div>
   )
 }
