@@ -16,19 +16,23 @@ export default function Home() {
 
   const createGame = () => {
     if (!name) return alert("Enter your name");
+
     socket.emit("create-game", { name });
 
-    socket.once("game-created", ({ gameId, playerIndex }) => {
-      router.push(`/game/${gameId}?playerIndex=${playerIndex}`);
+    socket.once("game-created", ({ gameId, playerCode }) => {
+      // 🔐 SECURE LINK
+      router.push(`/game/${gameId}?playerCode=${playerCode}`);
     });
   };
 
   const joinGame = () => {
     if (!name || !gameId) return alert("Enter name & game ID");
+
     socket.emit("join-game", { gameId, name });
 
-    socket.once("joined-game", ({ gameId, playerIndex }) => {
-      router.push(`/game/${gameId}?playerIndex=${playerIndex}`);
+    socket.once("joined-game", ({ gameId, playerCode }) => {
+      // 🔐 SECURE LINK
+      router.push(`/game/${gameId}?playerCode=${playerCode}`);
     });
   };
 
