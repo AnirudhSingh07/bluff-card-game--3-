@@ -196,6 +196,7 @@ export default function GameBoard({
           canCheck={canCheck}
           isCurrentPlayer={isMyTurn}
           playerHand={me.hand}
+          lastClaim={lastClaim}
         />
       </div>
     </div>

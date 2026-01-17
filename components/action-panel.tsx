@@ -5,6 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import PlayDialog from "./play-dialog"
 
+interface LastClaim {
+  player: number
+  count: number
+  type: string
+}
+
 interface ActionPanelProps {
   onPass: () => void
   onPlayCards: (count: number, cardType: string, selectedCards: string[]) => void
@@ -13,6 +19,7 @@ interface ActionPanelProps {
   isCurrentPlayer: boolean
   playerHand: string[]
   gameLog: string[]   // 👈 ADD THIS
+  lastClaim : LastClaim | null
 }
 
 export default function ActionPanel({
@@ -23,6 +30,7 @@ export default function ActionPanel({
   isCurrentPlayer,
   playerHand,
   gameLog,          // 👈 ADD THIS
+  lastClaim
 }: ActionPanelProps) {
   const [showPlayDialog, setShowPlayDialog] = useState(false)
 
@@ -68,6 +76,7 @@ export default function ActionPanel({
         <PlayDialog
           playerHand={playerHand}
           log={gameLog}   // 👈 PASS LOG HERE
+          lastClaim={lastClaim}
           onSubmit={(count, type, selected) => {
             onPlayCards(count, type, selected)
             setShowPlayDialog(false)

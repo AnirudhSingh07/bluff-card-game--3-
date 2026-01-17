@@ -88,40 +88,50 @@
 // }
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import PlayerHand from "./player-hand"
+
+interface LastClaim {
+  player: number
+  count: number
+  type: string
+}
 
 
 
 interface PlayDialogProps {
   playerHand: string[]
-  //new
   log?:string[]
   onSubmit: (count: number, cardType: string, selectedCards: string[]) => void
   onClose: () => void
+  lastClaim : LastClaim | null
 }
 
 const CARD_TYPES = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]
 
-export default function PlayDialog({ playerHand,log, onSubmit, onClose }: PlayDialogProps) {
+export default function PlayDialog({ playerHand,log, onSubmit, onClose, lastClaim }: PlayDialogProps) {
   const [count, setCount] = useState(1)
   const [cardType, setCardType] = useState("A")
   const [selectedCards, setSelectedCards] = useState<string[]>([])
 
+  
+
   //new
-  const lastLog = log?.[log.length - 1] || null
-
-let lastCardType: string | null = null
-
-if (lastLog) {
-  const match = lastLog.match(/(\d+)x\s+([A-Z0-9]+)/)
-  if (match) lastCardType = match[2]
-}
-const allowedCardTypes = lastCardType
-  ? [lastCardType]
+// Use server-authoritative state instead of logs
+const allowedCardTypes = lastClaim
+  ? [lastClaim.type]
   : CARD_TYPES
+
+  useEffect(() => {
+  if (allowedCardTypes.length === 1) {
+    setCardType(allowedCardTypes[0])
+  } else if (!allowedCardTypes.includes(cardType)) {
+    setCardType(allowedCardTypes[0])
+  }
+}, [allowedCardTypes])
+
 
 
   const toggleSelectCard = (cardId: string) => {
