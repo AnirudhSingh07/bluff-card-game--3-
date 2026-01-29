@@ -189,7 +189,7 @@ const allowedCardTypes = lastClaim
         </div>
 
         {/* Player hand */}
-        <div className="relative flex-1 flex items-center justify-center mt-44 min-h-[220px] sm:min-h-[260px]">
+        <div className="relative flex-1 flex items-center justify-center min-h-[220px] sm:min-h-[260px]">
   <PlayerHand
     cards={playerHand}
     selectable={true}
