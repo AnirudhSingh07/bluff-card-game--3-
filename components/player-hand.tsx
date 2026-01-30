@@ -25,7 +25,7 @@ export default function PlayerHand({
   const radius = 180 // radius of circular arc
   const maxFanAngle = 90 // degrees covered by the entire hand
   return (
-    <div className="flex gap-2 flex-wrap mt-2">
+    <div className="flex gap-2 h-20 flex-wrap mt-2">
       {cards.map((card, index) => {
         const cardId = `${card}-${index}` // unique ID
         const isSelected = selectedCards.includes(cardId)
@@ -51,7 +51,7 @@ export default function PlayerHand({
           <div
   key={cardId}
   onClick={() => selectable && onSelectCard && onSelectCard(cardId)}
-  className={`absolute transition-all justify-center transform ${
+  className={`absolute transition-all h-48 justify-center transform ${
     isSelected ? "hover:scale-105" : ""
   }`}
   style={{
