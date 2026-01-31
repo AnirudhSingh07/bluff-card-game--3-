@@ -18,8 +18,8 @@ interface ActionPanelProps {
   canCheck: boolean
   isCurrentPlayer: boolean
   playerHand: string[]
-  gameLog: string[]   // 👈 ADD THIS
-  lastClaim : LastClaim | null
+  gameLog: string[]
+  lastClaim: LastClaim | null
 }
 
 export default function ActionPanel({
@@ -29,53 +29,55 @@ export default function ActionPanel({
   canCheck,
   isCurrentPlayer,
   playerHand,
-  gameLog,          // 👈 ADD THIS
-  lastClaim
+  gameLog,
+  lastClaim,
 }: ActionPanelProps) {
   const [showPlayDialog, setShowPlayDialog] = useState(false)
 
   if (!isCurrentPlayer) return null
 
   return (
-    <div className="mt-5 flex justify-center">
-      <Card className="border border-black w-80 align-middle items-center bg-gray-800">
-        <div className="flex gap-4 flex-wrap justify-center">
-          {/* Pass Button */}
+    <div className="flex justify-center">
+      <Card className="bg-black/60 backdrop-blur-xl border border-white/10 shadow-2xl px-2 py-2 rounded-4xl">
+        <div className="flex items-center justify-center gap-2 sm:gap-3">
+
+          {/* PASS */}
           <Button
             onClick={onPass}
-            className="min-w-32 text-white hover:bg-green-700 bg-green-800"
+            className="h-10 w-10 rounded-full bg-black hover:bg-green-800 text-white text-xs font-semibold shadow-lg active:scale-95 transition"
           >
             Pass
           </Button>
 
-          {/* Play Button */}
+          {/* PLAY */}
           <Button
             onClick={() => setShowPlayDialog(true)}
-            className="min-w-32 bg-blue-600 hover:bg-blue-700 text-white"
+            className="h-10 w-10 rounded-full bg-black hover:bg-yellow-500 text-white text-xs font-semibold shadow-lg active:scale-95 transition"
           >
             Play
           </Button>
 
-          {/* Check Button */}
+          {/* CHECK */}
           <Button
             onClick={onCheck}
             disabled={!canCheck}
-            className={`min-w-32 ${
-              canCheck
-                ? "bg-red-600 hover:bg-red-700 text-white"
-                : "bg-red-300 text-red-50 cursor-not-allowed"
-            }`}
+            className={`h-10 w-10 rounded-full text-xs font-semibold shadow-lg transition active:scale-95
+              ${
+                canCheck
+                  ? "bg-black hover:bg-red-500 text-white"
+                  : "bg-black text-red-50 cursor-not-allowed"
+              }`}
           >
             Check
           </Button>
+
         </div>
       </Card>
 
-      {/* Play Dialog */}
       {showPlayDialog && (
         <PlayDialog
           playerHand={playerHand}
-          log={gameLog}   // 👈 PASS LOG HERE
+          log={gameLog}
           lastClaim={lastClaim}
           onSubmit={(count, type, selected) => {
             onPlayCards(count, type, selected)
