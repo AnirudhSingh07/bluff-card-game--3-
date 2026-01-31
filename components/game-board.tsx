@@ -192,8 +192,38 @@ export default function GameBoard({
       <div className="flex-1 flex items-center justify-center relative">
 
         <div
-          className={`relative w-full max-w-[1000px] aspect-[9/5] sm:aspect-[16/9] bg-green-800 ${tableShape} border-[5px] sm:border-[8px] border-yellow-900 shadow-2xl`}
-        >
+  className={`
+    relative w-full max-w-[1000px] aspect-[9/5] sm:aspect-[16/9]
+    ${tableShape}
+    
+    /* OUTER DEPTH */
+    shadow-[0_40px_80px_rgba(0,0,0,0.85)]
+    
+    /* WOOD BODY */
+    border-[10px] border-[#4b2e12]
+    
+    /* FELT BASE */
+    bg-[radial-gradient(circle_at_center,#0f6b34_0%,#0c542a_45%,#083d1d_80%)]
+    
+    /* SMOOTH EDGES */
+    overflow-hidden
+  `}
+>
+  {/* 🎴 Felt Texture */}
+  <div className="absolute inset-0 opacity-[0.08] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/fabric-of-squares.png')]" />
+
+  {/* 💡 Overhead Light Glow */}
+  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.12),transparent_60%)] pointer-events-none" />
+
+  {/* 🌑 Inner Depth Shadow */}
+  <div className="absolute inset-0 shadow-[inset_0_25px_60px_rgba(0,0,0,0.85)] pointer-events-none" />
+
+  {/* 🪵 Padded Rail Highlight */}
+  <div className="absolute inset-0 rounded-[inherit] border-[6px] border-[#6b4420] shadow-[inset_0_0_25px_rgba(0,0,0,0.7)] pointer-events-none" />
+
+  <div className="absolute inset-0 opacity-[0.07] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/fabric-of-squares.png')]" />
+
+
           <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05),transparent_70%)]" />
 
           <div className="absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
@@ -236,7 +266,7 @@ export default function GameBoard({
         <PlayerHand cards={getUniqueHand(me.hand)} />
       </div>
 
-      <div className=" flex left-1/2 right-1/2 top-3/5   fixed justify-center">
+      <div className=" flex left-1/2 right-1/2 top-3/5 max-w-2 fixed justify-center">
         <ActionPanel
           onPass={pass}
           gameLog={log}
