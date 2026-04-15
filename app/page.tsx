@@ -1,42 +1,57 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSocket } from "./socket";
 
 export default function Home() {
   const [name, setName] = useState("");
   const [gameId, setGameId] = useState("");
+  const [maxPlayers, setMaxPlayers] = useState(4);
   const [loading, setLoading] = useState<null | "create" | "join">(null);
+  const [error, setError] = useState<string | null>(null);
 
   const router = useRouter();
   const socket = getSocket();
 
-  useEffect(() => {
-    if (!socket.connected) socket.connect();
-  }, [socket]);
-
   const createGame = () => {
-    if (!name) return alert("Enter your name");
-
+    if (!name.trim()) return setError("Enter your name");
+    setError(null);
     setLoading("create");
-    socket.emit("create-game", { name });
 
-    socket.once("game-created", ({ gameId, playerCode }) => {
+    if (!socket.connected) socket.connect();
+
+    socket.emit("create-game", { name: name.trim(), maxPlayers });
+
+    socket.once("game-created", ({ gameId: gid, playerCode }) => {
       setLoading(null);
-      router.push(`/game/${gameId}?playerCode=${playerCode}`);
+      router.push(`/game/${gid}?playerCode=${playerCode}`);
+    });
+
+    socket.once("error", (msg: string) => {
+      setLoading(null);
+      setError(msg);
     });
   };
 
   const joinGame = () => {
-    if (!name || !gameId) return alert("Enter name & game ID");
-
+    if (!name.trim()) return setError("Enter your name");
+    if (!gameId.trim()) return setError("Enter a game ID");
+    setError(null);
     setLoading("join");
-    socket.emit("join-game", { gameId, name });
 
-    socket.once("joined-game", ({ gameId, playerCode }) => {
+    if (!socket.connected) socket.connect();
+
+    socket.emit("join-game", { gameId: gameId.trim().toLowerCase(), name: name.trim() });
+
+    socket.once("joined-game", ({ gameId: gid, playerCode }) => {
       setLoading(null);
-      router.push(`/game/${gameId}?playerCode=${playerCode}`);
+      router.push(`/game/${gid}?playerCode=${playerCode}`);
+    });
+
+    socket.once("error", (msg: string) => {
+      setLoading(null);
+      setError(msg);
     });
   };
 
@@ -46,35 +61,54 @@ export default function Home() {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#0a1418] via-[#121d2a] to-[#18243f] relative overflow-hidden">
-      
       <div className="absolute w-96 h-96 bg-green-500/20 rounded-full blur-3xl top-[-100px] left-[-100px]" />
       <div className="absolute w-96 h-96 bg-blue-500/20 rounded-full blur-3xl bottom-[-100px] right-[-100px]" />
 
-      <div className="relative backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl rounded-2xl p-8 w-full max-w-md space-y-6">
-
+      <div className="relative backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl rounded-2xl p-8 w-full max-w-md space-y-5">
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-extrabold text-white tracking-wide">
             🃏 Bluff Arena
           </h1>
-          <p className="text-gray-300 text-sm">
-            Outsmart. Bluff. Win.
-          </p>
+          <p className="text-gray-300 text-sm">Outsmart. Bluff. Win.</p>
         </div>
 
+        {/* Name input */}
         <div>
           <label className="text-sm text-gray-300">Your Name</label>
           <input
             placeholder="Enter your name"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            maxLength={20}
             className="mt-1 w-full p-3 rounded-lg bg-black/40 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
           />
         </div>
 
+        {/* Max players */}
+        <div>
+          <label className="text-sm text-gray-300">Max Players (for new game)</label>
+          <div className="flex gap-2 mt-1">
+            {[2, 3, 4, 5, 6].map((n) => (
+              <button
+                key={n}
+                onClick={() => setMaxPlayers(n)}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
+                  maxPlayers === n
+                    ? "bg-blue-600 text-white"
+                    : "bg-black/40 border border-white/10 text-gray-400 hover:bg-white/10"
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Create game */}
         <button
           onClick={createGame}
           disabled={loading !== null}
-          className="w-full py-3 rounded-lg font-semibold bg-gradient-to-r from-gray-900 to-black text-white flex items-center justify-center gap-2 hover:scale-[1.03] active:scale-95 transition transform shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full py-3 rounded-lg font-semibold bg-gradient-to-r from-gray-900 to-black text-white flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition shadow-lg disabled:opacity-60 disabled:cursor-not-allowed border border-white/10"
         >
           {loading === "create" ? <Spinner /> : "🎯 Create New Game"}
         </button>
@@ -85,10 +119,11 @@ export default function Home() {
           <div className="flex-1 h-px bg-white/10" />
         </div>
 
+        {/* Join game */}
         <div>
           <label className="text-sm text-gray-300">Game ID</label>
           <input
-            placeholder="Enter game ID"
+            placeholder="Enter game ID to join"
             value={gameId}
             onChange={(e) => setGameId(e.target.value)}
             className="mt-1 w-full p-3 rounded-lg bg-black/40 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
@@ -98,12 +133,18 @@ export default function Home() {
         <button
           onClick={joinGame}
           disabled={loading !== null}
-          className="w-full py-3 rounded-lg font-semibold bg-gradient-to-r from-gray-900 to-black text-white flex items-center justify-center gap-2 hover:scale-[1.03] active:scale-95 transition transform shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full py-3 rounded-lg font-semibold bg-gradient-to-r from-gray-900 to-black text-white flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition shadow-lg disabled:opacity-60 disabled:cursor-not-allowed border border-white/10"
         >
           {loading === "join" ? <Spinner /> : "🚀 Join Game"}
         </button>
 
-        <p className="text-center text-xs text-gray-400 pt-2">
+        {error && (
+          <p className="text-center text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg py-2 px-3">
+            {error}
+          </p>
+        )}
+
+        <p className="text-center text-xs text-gray-500 pt-1">
           Play with friends in real-time multiplayer
         </p>
       </div>

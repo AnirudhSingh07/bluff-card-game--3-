@@ -1,215 +1,197 @@
-// "use client"
+"use client";
 
-// import { useState } from "react"
-// import { Card } from "@/components/ui/card"
-// import { Button } from "@/components/ui/button"
-// import PlayerHand from "./player-hand"
-
-// interface PlayDialogProps {
-//   playerHand: string[]
-//   onSubmit: (count: number, cardType: string, selectedCards: string[]) => void
-//   onClose: () => void
-// }
-
-// const CARD_TYPES = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]
-
-// export default function PlayDialog({ playerHand, onSubmit, onClose }: PlayDialogProps) {
-//   const [count, setCount] = useState(1)
-//   const [cardType, setCardType] = useState("A")
-//   const [selectedCards, setSelectedCards] = useState<string[]>([])
-
-//   const toggleSelectCard = (cardId: string) => {
-//     setSelectedCards(prev =>
-//       prev.includes(cardId) ? prev.filter(c => c !== cardId) : prev.length < count ? [...prev, cardId] : prev,
-//     )
-//   }
-
-//   const handleSubmit = () => {
-//     if (selectedCards.length !== count) return
-//     const cardsToPlay = selectedCards.map(id => id.split("-")[0])
-//     onSubmit(count, cardType, cardsToPlay)
-//     onClose()
-//   }
-
-//   return (
-//     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-//       <Card className="w-full max-w-2xl shadow-xl max-h-screen overflow-y-auto p-6 space-y-6">
-//         <h2 className="text-2xl font-bold text-center text-slate-800">Make Your Claim</h2>
-
-//         {/* Count selection */}
-//         <div className="flex gap-2 justify-center flex-wrap">
-//           {[1, 2, 3, 4, 5, 6].map(n => (
-//             <Button
-//               key={n}
-//               variant={count === n ? "default" : "outline"}
-//               onClick={() => {
-//                 setCount(n)
-//                 setSelectedCards([])
-//               }}
-//             >
-//               {n}
-//             </Button>
-//           ))}
-//         </div>
-
-//         {/* Card type selection */}
-//         <div className="grid grid-cols-7 gap-2">
-//           {CARD_TYPES.map(type => (
-//             <Button
-//               key={type}
-//               variant={cardType === type ? "default" : "outline"}
-//               onClick={() => setCardType(type)}
-//             >
-//               {type}
-//             </Button>
-//           ))}
-//         </div>
-
-//         {/* Player hand */}
-//         <PlayerHand
-//           cards={playerHand}
-//           selectedCards={selectedCards}
-//           onSelect={toggleSelectCard}
-//           selectable={true}
-//         />
-
-//         {/* Actions */}
-//         <div className="flex gap-3 justify-end">
-//           <Button variant="outline" onClick={onClose}>
-//             Cancel
-//           </Button>
-//           <Button onClick={handleSubmit} disabled={selectedCards.length !== count}>
-//             Submit Claim
-//           </Button>
-//         </div>
-//       </Card>
-//     </div>
-//   )
-// }
-"use client"
-
-import { useState, useEffect } from "react"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import PlayerHand from "./player-hand"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import PlayerHand from "./player-hand";
 
 interface LastClaim {
-  player: number
-  count: number
-  type: string
+  player: number;
+  count: number;
+  type: string;
 }
-
-
 
 interface PlayDialogProps {
-  playerHand: string[]
-  log?:string[]
-  onSubmit: (count: number, cardType: string, selectedCards: string[]) => void
-  onClose: () => void
-  lastClaim : LastClaim | null
+  playerHand: string[];
+  lastClaim: LastClaim | null;
+  onSubmit: (count: number, cardType: string, selectedCards: string[]) => void;
+  onClose: () => void;
+  log?: string[];
 }
 
-const CARD_TYPES = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]
+const CARD_TYPES = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"];
 
-export default function PlayDialog({ playerHand,log, onSubmit, onClose, lastClaim }: PlayDialogProps) {
-  const [count, setCount] = useState(1)
-  const [cardType, setCardType] = useState("A")
-  const [selectedCards, setSelectedCards] = useState<string[]>([])
+export default function PlayDialog({
+  playerHand,
+  lastClaim,
+  onSubmit,
+  onClose,
+}: PlayDialogProps) {
+  const allowedTypes = lastClaim ? [lastClaim.type] : CARD_TYPES;
 
-  
-
-  //new
-// Use server-authoritative state instead of logs
-const allowedCardTypes = lastClaim
-  ? [lastClaim.type]
-  : CARD_TYPES
+  const [count, setCount] = useState(1);
+  const [cardType, setCardType] = useState(allowedTypes[0]);
+  const [selectedCards, setSelectedCards] = useState<string[]>([]);
 
   useEffect(() => {
-  if (allowedCardTypes.length === 1) {
-    setCardType(allowedCardTypes[0])
-  } else if (!allowedCardTypes.includes(cardType)) {
-    setCardType(allowedCardTypes[0])
-  }
-}, [allowedCardTypes])
+    if (!allowedTypes.includes(cardType)) {
+      setCardType(allowedTypes[0]);
+    }
+    setSelectedCards([]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastClaim?.type]);
 
+  const toggleCard = (cardId: string) => {
+    setSelectedCards((prev) => {
+      if (prev.includes(cardId)) return prev.filter((c) => c !== cardId);
+      if (prev.length >= count) return prev;
+      return [...prev, cardId];
+    });
+  };
 
-
-  const toggleSelectCard = (cardId: string) => {
-    setSelectedCards(prev =>
-      prev.includes(cardId)
-        ? prev.filter(c => c !== cardId)
-        : prev.length < count
-        ? [...prev, cardId]
-        : prev
-    )
-  }
+  const handleCountChange = (n: number) => {
+    setCount(n);
+    setSelectedCards([]);
+  };
 
   const handleSubmit = () => {
-    if (selectedCards.length !== count) return
-    const cardsToPlay = selectedCards.map(c => c.split("-")[0]) // remove index for server
-    onSubmit(count, cardType, cardsToPlay)
-    onClose()
-    setSelectedCards([]) // reset selection
-  }
+    if (selectedCards.length !== count) return;
+    const cards = selectedCards.map((id) => {
+      const parts = id.split("-");
+      parts.pop();
+      return parts.join("-");
+    });
+    onSubmit(count, cardType, cards);
+    onClose();
+  };
+
+  const maxCount = Math.min(4, playerHand.length);
+  const ready = selectedCards.length === count;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"><Card className="w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 flex flex-col">
+    <div
+      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full sm:max-w-xl bg-[#111827] border border-white/10 rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
 
-        <h2 className="text-2xl font-bold text-center text-slate-800">Make Your Claim</h2>
-
-        {/* Count selection */}
-        <div className="flex gap-2 justify-center flex-wrap">
-          {[1, 2, 3, 4].map(n => (
-            <Button
-              key={n}
-              variant={count === n ? "default" : "outline"}
-              onClick={() => {
-                setCount(n)
-                setSelectedCards([])
-              }}
-            >
-              {n}
-            </Button>
-          ))}
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-2 flex-shrink-0">
+          <div>
+            <h2 className="text-xl font-bold text-white">Play Cards</h2>
+            {lastClaim && (
+              <p className="text-xs text-amber-400 mt-0.5">
+                Continuing — must claim:{" "}
+                <span className="font-bold">{lastClaim.type}</span>
+              </p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-gray-400 text-lg transition flex items-center justify-center"
+          >
+            ×
+          </button>
         </div>
 
-        {/* Card type selection */}
-        <div className="grid grid-cols-7 gap-2">
-          {/* new */}
-          {allowedCardTypes.map(type => (
-
-            <Button
-              key={type}
-              variant={cardType === type ? "default" : "outline"}
-              onClick={() => setCardType(type)}
-            >
-              {type}
-            </Button>
-          ))}
+        {/* ── Count selector ── */}
+        <div className="px-5 pb-3 flex-shrink-0">
+          <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">
+            How many?
+          </p>
+          <div className="flex gap-2">
+            {Array.from({ length: maxCount }, (_, i) => i + 1).map((n) => (
+              <Button
+                key={n}
+                variant={count === n ? "default" : "outline"}
+                className={`flex-1 font-bold ${
+                  count === n
+                    ? "bg-blue-600 hover:bg-blue-500 border-blue-600 text-white"
+                    : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white"
+                }`}
+                onClick={() => handleCountChange(n)}
+              >
+                {n}
+              </Button>
+            ))}
+          </div>
         </div>
 
-        {/* Player hand */}
-        <div className="relative flex-1 flex items-center justify-center min-h-[220px] sm:min-h-[260px]">
-  <PlayerHand
-    cards={playerHand}
-    selectable={true}
-    selectedCards={selectedCards}
-    onSelectCard={toggleSelectCard}
-  />
-</div>
+        {/* ── Card type selector ── */}
+        <div className="px-5 pb-3 flex-shrink-0">
+          <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">
+            Card type
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {allowedTypes.map((type) => (
+              <Button
+                key={type}
+                variant={cardType === type ? "default" : "outline"}
+                className={`px-3 py-1 h-auto text-sm font-bold ${
+                  cardType === type
+                    ? "bg-blue-600 hover:bg-blue-500 border-blue-600 text-white"
+                    : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white"
+                }`}
+                onClick={() => setCardType(type)}
+              >
+                {type}
+              </Button>
+            ))}
+          </div>
+        </div>
 
+        {/* ── Selection status ── */}
+        <div className="px-5 pb-1 flex-shrink-0">
+          <p className="text-xs text-gray-500">
+            Select{" "}
+            <span className="text-white font-semibold">{count}</span> card
+            {count > 1 ? "s" : ""} from your hand{" "}
+            <span
+              className={`font-semibold ml-1 ${
+                ready ? "text-green-400" : "text-gray-500"
+              }`}
+            >
+              ({selectedCards.length}/{count} selected)
+            </span>
+          </p>
+        </div>
 
-        {/* Actions */}
-        <div className="flex gap-3 justify-end pt-6 sticky bottom-0 bg-white">
+        {/* ── Card fan ── */}
+        <div
+          className="flex-shrink-0 relative w-full overflow-visible"
+          style={{ height: 260 }}
+        >
+          <PlayerHand
+            cards={playerHand}
+            selectable
+            selectedCards={selectedCards}
+            onSelectCard={toggleCard}
+          />
+        </div>
 
-          <Button variant="outline" onClick={onClose}>
+        {/* ── Footer ── */}
+        <div className="px-5 py-4 border-t border-white/10 flex gap-3 flex-shrink-0 bg-[#111827]">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="flex-1 bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white"
+          >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={selectedCards.length !== count}>
-            Submit Claim
+          <Button
+            onClick={handleSubmit}
+            disabled={!ready}
+            className={`flex-[2] font-semibold transition ${
+              ready
+                ? "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/25"
+                : "bg-white/5 text-gray-600 border-white/5 cursor-not-allowed"
+            }`}
+          >
+            {ready
+              ? `▶ Play ${count} × ${cardType}`
+              : `Select ${count - selectedCards.length} more`}
           </Button>
         </div>
-      </Card>
+      </div>
     </div>
-  )
+  );
 }
