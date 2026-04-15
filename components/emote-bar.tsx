@@ -24,7 +24,7 @@ export default function EmoteBar({ socket, gameId }: EmoteBarProps) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative ">
       {/* Emote picker (pops up) */}
       {open && (
         <div className="absolute bottom-full mb-2 right-0 flex gap-2 bg-black/70 backdrop-blur-md border border-white/10 rounded-2xl px-3 py-2 shadow-xl">
